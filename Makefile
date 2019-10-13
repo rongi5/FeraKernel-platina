@@ -390,9 +390,9 @@ LINUXINCLUDE    := \
 KBUILD_CPPFLAGS := -D__KERNEL__
 
 KBUILD_CFLAGS   := -Ofast -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-format-security -Wno-unused-function -Wno-array-bounds \
-		   -Wno-address -Wno-unused-variable -Wno-implicit-function-declaration \
+		   -Wno-address -Wno-unused-variable -Wno-unused-but-set-variable -Wno-implicit-function-declaration \
 		   -fno-strict-aliasing -fno-common -ftree-vectorize -funroll-loops -ffast-math \
-		   -march=armv8-a+crc -mtune=kryo \
+		   -march=armv8-a+crc -mcpu=cortex-a73.cortex-a53 -mtune=cortex-a73.cortex-a53 \
 		   -std=gnu89 $(call cc-option,-fno-PIE)
 
 ifeq ($(TARGET_BOARD_TYPE),auto)
