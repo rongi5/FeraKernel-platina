@@ -65,7 +65,6 @@
 #include <linux/ctype.h>
 #include <linux/compat.h>
 #include <linux/reboot.h>
-#include <linux/random.h>
 #ifdef MSM_PLATFORM
 #include <soc/qcom/subsystem_restart.h>
 #endif
@@ -752,6 +751,12 @@ int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 	if (cds_is_fw_down()) {
 		hdd_debug("FW is down: 0x%x Ignore!!!",
 			cds_get_driver_state());
+		return -EAGAIN;
+	}
+
+	if (cds_is_driver_thermal_mitigated()) {
+		hdd_debug("Driver in thermal mitigated state: 0x%x Block!!!",
+			  cds_get_driver_state());
 		return -EAGAIN;
 	}
 
@@ -2237,6 +2242,37 @@ static void hdd_check_for_leaks(void)
 	qdf_mem_check_for_leaks();
 }
 
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/**
+ * hdd_configure_thermal_mitigation() - Register/unregister thermal mitigation
+ * @dev: The device structure
+ * @state: true for register; false for unregister
+ *
+ * This API triggers regiters/unregisters thermal mitigation feature with the
+ * thermal subsystem.
+ *
+ * Return: None
+ */
+static void hdd_configure_thermal_mitigation(hdd_context_t *hdd_ctx,
+					     struct device *dev, bool state)
+{
+	if (state) {
+		if (!pld_thermal_register(dev, HDD_THERMAL_MAX_STATE))
+			hdd_ctx->is_thermal_system_registered = true;
+	} else {
+		if (hdd_ctx->is_thermal_system_registered) {
+			pld_thermal_unregister(dev);
+			hdd_ctx->is_thermal_system_registered = false;
+		}
+	}
+}
+#else
+static void hdd_configure_thermal_mitigation(hdd_context_t *hdd_ctx,
+					     struct device *dev, bool state)
+{
+}
+#endif
+
 uint32_t hdd_wlan_get_version(hdd_context_t *hdd_ctx,
 			      const size_t version_len, uint8_t *version)
 {
@@ -2405,9 +2441,11 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		}
 
 
-		ret = hdd_ipa_init(hdd_ctx);
-		if (ret)
+		status = hdd_ipa_init(hdd_ctx);
+		if (status) {
+			ret = qdf_status_to_os_return(status);
 			goto err_post_disable;
+		}
 
 		hdd_sysfs_create_version_interface();
 
@@ -2454,6 +2492,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		}
 
 		hdd_enable_power_management();
+		hdd_configure_thermal_mitigation(hdd_ctx, qdf_dev->dev, 1);
 		hdd_info("Driver Modules Successfully Enabled");
 		hdd_ctx->driver_status = DRIVER_MODULES_ENABLED;
 
@@ -8174,6 +8213,32 @@ static void hdd_send_svc_coex_info(hdd_context_t *hdd_ctx,
 }
 
 /**
+ * hdd_store_sap_restart_channel() - store sap restart channel
+ * @restart_chan: restart channel
+ * @restart_chan_store: pointer to restart channel store
+ *
+ * The function will store new sap restart channel.
+ *
+ * Return - none
+ */
+static void
+hdd_store_sap_restart_channel(uint8_t restart_chan, uint8_t *restart_chan_store)
+{
+	uint8_t i;
+
+	for (i = 0; i < SAP_MAX_NUM_SESSION; i++) {
+		if (*(restart_chan_store + i) == restart_chan)
+			return;
+
+		if (*(restart_chan_store + i))
+			continue;
+
+		*(restart_chan_store + i) = restart_chan;
+		return;
+	}
+}
+
+/**
  * hdd_unsafe_channel_restart_sap() - restart sap if sap is on unsafe channel
  * @hdd_ctx: hdd context pointer
  *
@@ -8191,6 +8256,7 @@ void hdd_unsafe_channel_restart_sap(hdd_context_t *hdd_ctxt)
 	uint32_t i;
 	bool found = false;
 	uint8_t restart_chan;
+	uint8_t restart_chan_store[SAP_MAX_NUM_SESSION] = {0};
 
 	status = hdd_get_front_adapter(hdd_ctxt, &adapter_node);
 	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
@@ -8232,13 +8298,31 @@ void hdd_unsafe_channel_restart_sap(hdd_context_t *hdd_ctxt)
 		}
 
 		if (!found) {
+			hdd_store_sap_restart_channel(
+				adapter_temp->sessionCtx.ap.operatingChannel,
+				restart_chan_store);
 			hdd_debug("ch:%d is safe. no need to change channel",
 				adapter_temp->sessionCtx.ap.operatingChannel);
 			goto next_adapater;
 		}
 
-		restart_chan =
-			wlansap_get_safe_channel_from_pcl_and_acs_range(
+		restart_chan = 0;
+		for (i = 0; i < SAP_MAX_NUM_SESSION; i++) {
+			if (!restart_chan_store[i])
+				continue;
+
+			if (cds_is_force_scc() &&
+			    CDS_IS_SAME_BAND_CHANNELS(
+						restart_chan_store[i],
+						adapter_temp->sessionCtx.ap.
+						operatingChannel)) {
+				restart_chan = restart_chan_store[i];
+				break;
+			}
+		}
+		if (!restart_chan)
+			restart_chan =
+				wlansap_get_safe_channel_from_pcl_and_acs_range(
 					adapter_temp->sessionCtx.ap.sapContext);
 		if (!restart_chan) {
 			hdd_err("fail to restart SAP");
@@ -8255,8 +8339,12 @@ void hdd_unsafe_channel_restart_sap(hdd_context_t *hdd_ctxt)
 					       restart_chan);
 			hdd_debug("driver to start sap: %d",
 				hdd_ctxt->config->sap_internal_restart);
-			if (hdd_ctxt->config->sap_internal_restart)
+			if (hdd_ctxt->config->sap_internal_restart) {
 				hdd_restart_sap(adapter_temp, restart_chan);
+				hdd_store_sap_restart_channel(
+							restart_chan,
+							restart_chan_store);
+			}
 			else
 				return;
 		}
@@ -8941,6 +9029,9 @@ static hdd_context_t *hdd_context_create(struct device *dev)
 	if (ret)
 		goto err_deinit_hdd_context;
 
+	wlan_logging_set_log_to_console(hdd_ctx->config->wlanLoggingToConsole);
+	wlan_logging_set_active(hdd_ctx->config->wlanLoggingEnable);
+
 	hdd_ctx->is_ssr_in_progress = false;
 
 	/*
@@ -9455,6 +9546,27 @@ static inline void hdd_ra_populate_cds_config(struct cds_config_info *cds_cfg,
 }
 #endif
 
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/**
+ * hdd_populate_thermal_cfg - Populate the thermal config ini values in CDS cfg
+ * @cds_cfg: CDS config structure
+ * @hdd_ctx: HDD context structure
+ *
+ * Return: None
+ */
+static inline void hdd_populate_thermal_cfg(struct cds_config_info *cds_cfg,
+					    hdd_context_t *hdd_ctx)
+{
+	cds_cfg->thermal_sampling_time = hdd_ctx->config->thermal_sampling_time;
+	cds_cfg->thermal_throt_dc = hdd_ctx->config->thermal_throt_dc;
+}
+#else
+static inline void hdd_populate_thermal_cfg(struct cds_config_info *cds_cfg,
+					    hdd_context_t *hdd_ctx)
+{
+}
+#endif
+
 /**
  * hdd_update_cds_config() - API to update cds configuration parameters
  * @hdd_ctx: HDD Context
@@ -9604,6 +9716,7 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 	hdd_nan_populate_cds_config(cds_cfg, hdd_ctx);
 	hdd_lpass_populate_cds_config(cds_cfg, hdd_ctx);
 	cds_init_ini_config(cds_cfg);
+	hdd_populate_thermal_cfg(cds_cfg, hdd_ctx);
 	return 0;
 
 exit:
@@ -9970,49 +10083,6 @@ void hdd_populate_random_mac_addr(hdd_context_t *hdd_ctx, uint32_t num)
 	}
 }
 
-static int randomize_mac = 1;
-
-static struct ctl_table randomize_mac_table[] =
-{
-       {
-               .procname       = "randomize_mac",
-               .data           = &randomize_mac,
-               .maxlen         = sizeof(int),
-               .mode           = 0600,
-               .proc_handler   = proc_dointvec
-       },
-       { }
-};
-
-static struct ctl_table cnss_table[] =
-{
-       {
-               .procname       = "cnss",
-               .maxlen         = 0,
-               .mode           = 0555,
-               .child          = randomize_mac_table,
-       },
-       { }
-};
-
-static struct ctl_table dev_table[] =
-{
-       {
-               .procname       = "dev",
-               .maxlen         = 0,
-               .mode           = 0555,
-               .child          = cnss_table,
-       },
-       { }
-};
-
-static int __init init_randomize_mac(void)
-{
-	register_sysctl_table(dev_table);
-	return 0;
-}
-late_initcall(init_randomize_mac);
-
 /**
  * hdd_platform_wlan_mac() - API to get mac addresses from platform driver
  * @hdd_ctx: HDD Context
@@ -10027,7 +10097,6 @@ static int hdd_platform_wlan_mac(hdd_context_t *hdd_ctx)
 	uint32_t max_mac_addr = QDF_MAX_CONCURRENCY_PERSONA;
 	uint32_t mac_addr_size = QDF_MAC_ADDR_SIZE;
 	uint8_t *addr, *buf;
-	u8 addr_random[QDF_MAX_CONCURRENCY_PERSONA * QDF_MAC_ADDR_SIZE];
 	struct device *dev = hdd_ctx->parent_dev;
 	tSirMacAddr mac_addr;
 	QDF_STATUS status;
@@ -10038,13 +10107,6 @@ static int hdd_platform_wlan_mac(hdd_context_t *hdd_ctx)
 		return -EINVAL;
 
 	hdd_free_mac_address_lists(hdd_ctx);
-
-	if (randomize_mac) {
-		memcpy(addr_random, addr, no_of_mac_addr * mac_addr_size);
-		for (iter = 0; iter < no_of_mac_addr * mac_addr_size; iter += QDF_MAC_ADDR_SIZE)
-			get_random_bytes(&addr_random[iter + 3], 3);
-		addr = addr_random;
-	}
 
 	if (no_of_mac_addr > max_mac_addr)
 		no_of_mac_addr = max_mac_addr;
@@ -10419,8 +10481,6 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 		hdd_err("reg info update failed");
 		goto out;
 	}
-
-	cds_fill_and_send_ctl_to_fw(&hdd_ctx->reg);
 
 	status = hdd_set_sme_chan_list(hdd_ctx);
 	if (status != QDF_STATUS_SUCCESS) {
@@ -11151,6 +11211,7 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 	case DRIVER_MODULES_ENABLED:
 		hdd_info("Wlan transition (OPENED <- ENABLED)");
 
+		hdd_configure_thermal_mitigation(hdd_ctx, qdf_ctx->dev, 0);
 		hdd_disable_power_management();
 		if (hdd_deconfigure_cds(hdd_ctx)) {
 			hdd_err("Failed to de-configure CDS");

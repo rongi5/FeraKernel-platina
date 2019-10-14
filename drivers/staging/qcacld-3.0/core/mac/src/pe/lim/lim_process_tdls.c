@@ -70,6 +70,7 @@
 #include "cds_regdomain.h"
 #include "cds_utils.h"
 
+
 /* define NO_PAD_TDLS_MIN_8023_SIZE to NOT padding: See CR#447630
    There was IOT issue with cisco 1252 open mode, where it pads
    discovery req/teardown frame with some junk value up to min size.
@@ -80,8 +81,6 @@
 #define MIN_IEEE_8023_SIZE              46
 #define MIN_VENDOR_SPECIFIC_IE_SIZE     5
 #endif
-
-#define NO_SESSION 0xFF
 
 static tSirRetStatus lim_tdls_setup_add_sta(tpAniSirGlobal pMac,
 		tSirTdlsAddStaReq * pAddStaReq, tpPESession psessionEntry);
@@ -1624,7 +1623,7 @@ static tSirRetStatus lim_send_tdls_setup_rsp_frame(tpAniSirGlobal pMac,
 		if (wlan_cfg_get_int(pMac, WNI_CFG_MAX_SP_LENGTH, &val) !=
 		    eSIR_SUCCESS)
 			pe_warn("could not retrieve Max SP Length");
-		tdlsSetupRsp.WMMInfoStation.max_sp_length = (uint8_t) val;
+			tdlsSetupRsp.WMMInfoStation.max_sp_length = (uint8_t) val;
 		tdlsSetupRsp.WMMInfoStation.present = 1;
 	} else {
 		/*

@@ -3889,11 +3889,9 @@ static struct tag_csrscan_result *csr_scan_save_bss_description(tpAniSirGlobal
 }
 
 /* Append a Bss Description... */
-struct tag_csrscan_result *csr_scan_append_bss_description(tpAniSirGlobal pMac,
-						tSirBssDescription *
-						pSirBssDescription,
-						tDot11fBeaconIEs *pIes,
-						uint8_t sessionId)
+bool csr_scan_append_bss_description(tpAniSirGlobal pMac,
+				     tSirBssDescription *pSirBssDescription,
+				     tDot11fBeaconIEs *pIes, uint8_t sessionId)
 {
 	struct tag_csrscan_result *pCsrBssDescription = NULL;
 	tAniSSID tmpSsid;
@@ -3901,12 +3899,15 @@ struct tag_csrscan_result *csr_scan_append_bss_description(tpAniSirGlobal pMac,
 	int result;
 
 	tmpSsid.length = 0;
-	result = csr_remove_dup_bss_description(pMac, pSirBssDescription,
-						&tmpSsid, &timer);
 
 	pCsrBssDescription = csr_scan_save_bss_description(pMac,
 					pSirBssDescription, pIes, sessionId);
-	if (result && (pCsrBssDescription != NULL)) {
+	if (!pCsrBssDescription)
+		return false;
+	result = csr_remove_dup_bss_description(pMac, pSirBssDescription,
+						&tmpSsid, &timer);
+
+	if (result) {
 		/*
 		 * Check if the new one has SSID it it, if not, use the older
 		 * SSID if it exists.
@@ -3930,8 +3931,8 @@ struct tag_csrscan_result *csr_scan_append_bss_description(tpAniSirGlobal pMac,
 			}
 		}
 	}
-
-	return pCsrBssDescription;
+	csr_free_scan_result_entry(pMac, pCsrBssDescription);
+	return true;
 }
 
 static void csr_purge_channel_power(tpAniSirGlobal pMac, tDblLinkList
@@ -4301,7 +4302,6 @@ QDF_STATUS csr_set_country_code(tpAniSirGlobal pMac, uint8_t *pCountry)
 	return status;
 }
 
-#ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 /* caller allocated memory for pNumChn and pChnPowerInfo */
 /* As input, *pNumChn has the size of the array of pChnPowerInfo */
 /* Upon return, *pNumChn has the number of channels assigned. */
@@ -4330,6 +4330,7 @@ static void csr_get_channel_power_info(tpAniSirGlobal pMac, tDblLinkList *list,
 
 }
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 static void csr_diag_apply_country_info(tpAniSirGlobal mac_ctx)
 {
 	host_log_802_11d_pkt_type *p11dLog;
@@ -6107,9 +6108,9 @@ send_scan_req:
 	return status;
 }
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 static void csr_diag_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 {
-#ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 	host_log_scan_pkt_type *pScanLog = NULL;
 
 	WLAN_HOST_DIAG_LOG_ALLOC(pScanLog,
@@ -6142,8 +6143,10 @@ static void csr_diag_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 		      pScanLog->numChannel);
 	}
 	WLAN_HOST_DIAG_LOG_REPORT(pScanLog);
-#endif
 }
+#else
+#define csr_diag_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand) (void)0;
+#endif /* #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR */
 
 static QDF_STATUS csr_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 {
@@ -7147,7 +7150,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	tpCsrNeighborRoamControlInfo neighbor_roaminfo =
 		&mac_ctx->roam.neighborRoamInfo[session_id];
 	tCsrSSIDs *ssids = NULL;
-	struct csr_scan_for_ssid_context *context;
+	struct csr_scan_for_ssid_context *context = NULL;
 
 	if (!(mac_ctx->scan.fScanEnable) && (num_ssid != 1)) {
 		sme_err(
@@ -7320,6 +7323,7 @@ error:
 			csr_roam_call_callback(mac_ctx, session_id, NULL,
 					roam_id, eCSR_ROAM_FAILED,
 					eCSR_ROAM_RESULT_FAILURE);
+		qdf_mem_free(context);
 	}
 	return status;
 }
@@ -8150,7 +8154,7 @@ QDF_STATUS csr_scan_create_entry_in_scan_cache(tpAniSirGlobal pMac,
 	qdf_mem_copy(pNewBssDescriptor->bssId, bssid.bytes,
 			sizeof(tSirMacAddr));
 	pNewBssDescriptor->channelId = channel;
-	if (NULL == csr_scan_append_bss_description(pMac, pNewBssDescriptor,
+	if (!csr_scan_append_bss_description(pMac, pNewBssDescriptor,
 						pNewIes, sessionId)) {
 		sme_err("csr_scan_append_bss_description failed");
 		status = QDF_STATUS_E_FAILURE;

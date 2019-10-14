@@ -4125,7 +4125,6 @@ static bool tlv_check_required(int32_t reason)
 	case WOW_REASON_NAN_EVENT:
 	case WOW_REASON_NAN_DATA:
 	case WOW_REASON_ROAM_HO:
-		return true;
 	default:
 		return false;
 	}
@@ -7805,21 +7804,20 @@ QDF_STATUS wma_process_add_periodic_tx_ptrn_ind(WMA_HANDLE handle,
 		return QDF_STATUS_E_INVAL;
 	}
 
-	params_ptr = qdf_mem_malloc(sizeof(*params_ptr));
-
-	if (!params_ptr) {
-		WMA_LOGE(
-			"%s: unable to allocate memory for periodic_tx_pattern",
-			 __func__);
-		return QDF_STATUS_E_NOMEM;
-	}
-
 	if (!wma_find_vdev_by_addr(wma_handle,
 				   pAddPeriodicTxPtrnParams->mac_address.bytes,
 				   &vdev_id)) {
 		WMA_LOGE("%s: Failed to find vdev id for %pM", __func__,
 			 pAddPeriodicTxPtrnParams->mac_address.bytes);
 		return QDF_STATUS_E_INVAL;
+	}
+
+	params_ptr = qdf_mem_malloc(sizeof(*params_ptr));
+	if (!params_ptr) {
+		WMA_LOGE(
+			"%s: unable to allocate memory for periodic_tx_pattern",
+			 __func__);
+		return QDF_STATUS_E_NOMEM;
 	}
 
 	params_ptr->ucPtrnId = pAddPeriodicTxPtrnParams->ucPtrnId;
@@ -9744,8 +9742,9 @@ int wma_dfs_indicate_radar(struct ieee80211com *ic,
 	if (!pmac->sap.SapDfsInfo.disable_dfs_ch_switch)
 		wma->dfs_ic->disable_phy_err_processing = true;
 
-	if ((ichan->ic_ieee != (wma->dfs_ic->last_radar_found_chan)) ||
-	    (pmac->sap.SapDfsInfo.disable_dfs_ch_switch == true)) {
+	if (!cds_is_sta_sap_scc_allowed_on_dfs_channel() &&
+	    ((ichan->ic_ieee != (wma->dfs_ic->last_radar_found_chan)) ||
+	    (pmac->sap.SapDfsInfo.disable_dfs_ch_switch == true))) {
 		radar_event = (struct wma_dfs_radar_indication *)
 			qdf_mem_malloc(sizeof(struct wma_dfs_radar_indication));
 		if (radar_event == NULL) {
