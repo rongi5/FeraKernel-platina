@@ -391,8 +391,8 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 
 KBUILD_CFLAGS   := -Ofast -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-format-security -Wno-unused-function -Wno-array-bounds \
 		   -Wno-address -Wno-unused-variable -Wno-unused-but-set-variable -Wno-implicit-function-declaration \
-		   -fno-strict-aliasing -fno-common -ftree-vectorize -funroll-loops -ffast-math \
-		   -march=armv8-a+crc -mcpu=cortex-a73.cortex-a53+crypto -mtune=cortex-a73.cortex-a53 \
+		   -fno-strict-aliasing -fno-common -ftree-vectorize -fivopts -funroll-loops -ffast-math \
+		   -march=armv8-a+crc+simd+crypto+sb+predres -mcpu=cortex-a73.cortex-a53+crypto -mtune=cortex-a73.cortex-a53 \
 		   -std=gnu89 $(call cc-option,-fno-PIE)
 
 ifeq ($(TARGET_BOARD_TYPE),auto)
