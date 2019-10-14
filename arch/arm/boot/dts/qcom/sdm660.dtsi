@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -417,8 +417,8 @@
 			label = "cont_splash_mem";
 		};
 
-		dfps_data_mem: dfps_data_mem@0x9f7ff000 {
-		       reg = <0 0x9f7ff000 0 0x00001000>;
+		dfps_data_mem: dfps_data_mem@0x9f8ff000 {
+		       reg = <0 0x9f8ff000 0 0x00001000>;
 		       label = "dfps_data_mem";
 		};
 	};
@@ -657,7 +657,7 @@
 			compatible = "qcom,memshare-peripheral";
 			qcom,peripheral-size = <0x0>;
 			qcom,client-id = <1>;
-			qcom,allocate-boot-time;
+			qcom,allocate-on-request;
 			label = "modem";
 		};
 	};
@@ -840,7 +840,7 @@
 	qcom,msm-thermal {
 		compatible = "qcom,msm-thermal";
 		qcom,sensor-id = <1>;
-		qcom,poll-ms = <200>;
+		qcom,poll-ms = <500>;
 		qcom,therm-reset-temp = <115>;
 		qcom,core-limit-temp = <70>;
 		qcom,core-temp-hysteresis = <10>;
@@ -911,6 +911,7 @@
 		reg = <0x780000 0x1000>;
 		qcom,low-hyst-temp = <10>;
 		qcom,high-hyst-temp = <5>;
+        qcom,polling-interval = <200>;
 
 		ea0: ea0 {
 			sensor = <&sensor_information1>;
@@ -1752,6 +1753,7 @@
 		qcom,irq-mask = <0x200>;
 		interrupts = <0 157 1>;
 		label = "lpass";
+        cpu-affinity = <1 2>;
 		qcom,qos-config = <&glink_qos_adsp>;
 		qcom,ramp-time = <0xaf>;
 	};
