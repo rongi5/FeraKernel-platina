@@ -1,7 +1,7 @@
 VERSION = 4
 PATCHLEVEL = 4
 SUBLEVEL = 196
-EXTRAVERSION = .6
+EXTRAVERSION = .7
 NAME = FeraKernel
 
 # *DOCUMENTATION*
@@ -304,8 +304,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 CCACHE := $(shell which ccache)
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer -std=gnu89
-HOSTCXXFLAGS = -Ofast
+HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -std=gnu89
+HOSTCXXFLAGS = -O3
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -390,9 +390,9 @@ LINUXINCLUDE    := \
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
-KBUILD_CFLAGS   := -Ofast -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-format-security -Wno-unused-function -Wno-array-bounds \
+KBUILD_CFLAGS   := -O3 -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-format-security -Wno-unused-function -Wno-array-bounds \
 		   -Wno-address -Wno-unused-variable -Wno-unused-but-set-variable -Wno-implicit-function-declaration \
-		   -fno-strict-aliasing -fno-common -ftree-vectorize -fivopts -funroll-loops -ffast-math \
+		   -fno-strict-aliasing -fno-common -ftree-vectorize -fivopts -funroll-loops \
 		   -floop-nest-optimize -fgraphite-identity -ftree-loop-distribution \
 		   -march=armv8-a+crc+simd+crypto+sb+predres -mcpu=cortex-a73.cortex-a53+crypto -mtune=cortex-a73.cortex-a53 \
 		   -std=gnu89 $(call cc-option,-fno-PIE)
@@ -650,9 +650,9 @@ ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
 else
 ifdef CONFIG_PROFILE_ALL_BRANCHES
-KBUILD_CFLAGS	+= -Ofast
+KBUILD_CFLAGS	+= -O3
 else
-KBUILD_CFLAGS   += -Ofast
+KBUILD_CFLAGS   += -O3
 endif
 endif
 
