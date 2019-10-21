@@ -50,6 +50,10 @@ config CFQ_GROUP_IOSCHED
 	---help---
 	  Enable group IO scheduling in CFQ.
 
+config IOSCHED_MAPLE
+	tristate "Maple I/O scheduler"
+	default y
+
 config IOSCHED_ANXIETY
 	tristate "Anxiety I/O Scheduler"
 	default y
@@ -81,6 +85,9 @@ choice
 	config DEFAULT_ANXIETY
 		bool "Anxiety" if IOSCHED_ANXIETY=y
 
+    config DEFAULT_MAPLE
+		bool "Maple" if IOSCHED_MAPLE=y
+
 	config DEFAULT_NOOP
 		bool "No-op"
 
@@ -91,6 +98,7 @@ config DEFAULT_IOSCHED
 	default "deadline" if DEFAULT_DEADLINE
 	default "cfq" if DEFAULT_CFQ
 	default "anxiety" if DEFAULT_ANXIETY
+	default "maple" if DEFAULT_MAPLE
 	default "noop" if DEFAULT_NOOP
 
 endmenu
