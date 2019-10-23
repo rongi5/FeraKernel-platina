@@ -922,7 +922,7 @@ static ssize_t mdss_debug_perf_mode_write(struct file *file,
 {
 	struct mdss_perf_tune *perf_tune = file->private_data;
 	struct mdss_data_type *mdata = mdss_res;
-	int perf_mode = 0;
+	int perf_mode = 1;
 	char buf[10];
 
 	if (!perf_tune)

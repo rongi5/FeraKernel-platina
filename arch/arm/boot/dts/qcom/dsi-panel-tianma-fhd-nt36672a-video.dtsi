@@ -40,8 +40,8 @@
 		qcom,mdss-dsi-h-right-border = <0>;
 		qcom,mdss-dsi-v-top-border = <0>;
 		qcom,mdss-dsi-v-bottom-border = <0>;
-		qcom,mdss-dsi-bpp = <24>;
-		qcom,mdss-dsi-color-order = "0";
+		qcom,mdss-dsi-bpp = <32>;
+		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
 		qcom,mdss-dsi-underflow-color = <0x0>;
 		qcom,mdss-dsi-border-color = <0>;
 		qcom,mdss-dsi-on-command = [
@@ -264,7 +264,9 @@
 		qcom,mdss-pan-physical-height-dimension = <144>;
 		qcom,mdss-dsi-tx-eot-append;
 		qcom,ulps-enabled;
+        qcom,panel-allow-phy-poweroff;
 		qcom,esd-err-irq-gpio = <&tlmm 59 0x2001>;
+        qcom,esd-check-enabled;
 		qcom,dispparam-enabled;
 		qcom,mdss-panel-on-dimming-delay = <120>;
 		qcom,mdss-dsi-dispparam-dimmingon-command = [
