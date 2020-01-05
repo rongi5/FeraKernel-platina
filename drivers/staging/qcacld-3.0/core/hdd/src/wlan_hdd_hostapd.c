@@ -453,7 +453,7 @@ static int __hdd_hostapd_open(struct net_device *dev)
 	/*
 	 * Check statemachine state and also stop iface change timer if running
 	 */
-	ret = hdd_trigger_psoc_idle_restart(hdd_ctx);
+	ret = hdd_wlan_start_modules(hdd_ctx, false);
 	if (ret) {
 		hdd_err("Failed to start WLAN modules return");
 		return ret;

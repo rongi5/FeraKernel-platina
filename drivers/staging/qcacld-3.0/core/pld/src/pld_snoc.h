@@ -275,23 +275,10 @@ static inline int pld_snoc_force_assert_target(struct device *dev)
 	return icnss_trigger_recovery(dev);
 }
 
-static inline int pld_snoc_is_pdr(void)
-{
-	return icnss_is_pdr();
-}
-
 static inline int pld_snoc_is_fw_rejuvenate(void)
 {
 	return icnss_is_rejuvenate();
 }
-static inline int pld_snoc_idle_restart(struct device *dev)
-{
-	return icnss_idle_restart(dev);
-}
 
-static inline int pld_snoc_idle_shutdown(struct device *dev)
-{
-	return icnss_idle_shutdown(dev);
-}
 #endif
 #endif

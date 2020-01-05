@@ -2419,13 +2419,6 @@ static int __hdd_mon_open(struct net_device *dev)
 	hdd_mon_mode_ether_setup(dev);
 
 	if (con_mode == QDF_GLOBAL_MONITOR_MODE) {
-		ret = hdd_trigger_psoc_idle_restart(hdd_ctx);
-		if (ret) {
-			hdd_err("Failed to start WLAN modules return");
-			return ret;
-		}
-		hdd_err("hdd_wlan_start_modules() successful !");
-
 		if (!test_bit(SME_SESSION_OPENED, &adapter->event_flags)) {
 			ret = hdd_start_adapter(adapter);
 			if (ret) {
@@ -3310,13 +3303,6 @@ static int __hdd_open(struct net_device *dev)
 	if (!cds_is_driver_loaded()) {
 		hdd_err("Failed to start the wlan driver!!");
 		ret = -EIO;
-		goto err_hdd_hdd_init_deinit_lock;
-	}
-
-
-	ret = hdd_trigger_psoc_idle_restart(hdd_ctx);
-	if (ret) {
-		hdd_err("Failed to start WLAN modules return");
 		goto err_hdd_hdd_init_deinit_lock;
 	}
 
@@ -9623,7 +9609,6 @@ static void hdd_psoc_idle_timeout_callback(void *priv)
 
 	hdd_info("Psoc idle timeout elapsed; starting psoc shutdown");
 
-	pld_idle_shutdown(hdd_ctx->parent_dev, hdd_psoc_idle_shutdown);
 }
 
 
@@ -9642,25 +9627,6 @@ int hdd_psoc_idle_restart(struct device *dev)
 	}
 
 	return __hdd_psoc_idle_restart(hdd_ctx);
-}
-
-int hdd_trigger_psoc_idle_restart(struct hdd_context *hdd_ctx)
-{
-	int ret;
-
-	QDF_BUG(rtnl_is_locked());
-
-	mutex_lock(&hdd_ctx->iface_change_lock);
-	if (hdd_ctx->driver_status == DRIVER_MODULES_ENABLED) {
-		mutex_unlock(&hdd_ctx->iface_change_lock);
-		hdd_psoc_idle_timer_stop(hdd_ctx);
-		hdd_info("Driver modules already Enabled");
-		return 0;
-	}
-
-	mutex_unlock(&hdd_ctx->iface_change_lock);
-	ret = pld_idle_restart(hdd_ctx->parent_dev, hdd_psoc_idle_restart);
-	return ret;
 }
 
 int hdd_psoc_idle_shutdown(struct device *dev)
@@ -13816,8 +13782,7 @@ static int __con_mode_handler(const char *kmessage,
 	hdd_stop_present_mode(hdd_ctx, curr_mode);
 
 	is_mode_change_psoc_idle_shutdown = true;
-	ret = pld_idle_shutdown(hdd_ctx->parent_dev,
-				hdd_mode_change_psoc_idle_shutdown);
+	ret = hdd_wlan_stop_modules(hdd_ctx, true);
 	if (ret) {
 		is_mode_change_psoc_idle_shutdown = false;
 		hdd_err("Failed to change the mode because of idle shutdown");
@@ -13843,8 +13808,7 @@ static int __con_mode_handler(const char *kmessage,
 		goto reset_flags;
 	}
 
-	ret = pld_idle_restart(hdd_ctx->parent_dev,
-			       hdd_mode_change_psoc_idle_restart);
+	ret = hdd_wlan_stop_modules(hdd_ctx, true);
 	if (ret) {
 		is_mode_change_psoc_idle_shutdown = false;
 		hdd_err("Start wlan modules failed: %d", ret);
