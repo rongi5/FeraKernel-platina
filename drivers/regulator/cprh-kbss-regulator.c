@@ -1617,7 +1617,6 @@ static int cprh_kbss_calculate_target_quotients(struct cpr3_regulator *vreg)
 				CPRH_SDM660_PERF_KBSS_FUSE_CORNER_SVS;
 			highest_fuse_corner =
 				CPRH_SDM660_PERF_KBSS_FUSE_CORNER_TURBO_L2;
-
 		}
 		break;
 	case SDM630_SOC_ID:
