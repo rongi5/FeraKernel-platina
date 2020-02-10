@@ -32,7 +32,6 @@
 #include <linux/inet_diag.h>
 #include <linux/inet.h>
 #include <linux/random.h>
-#include <linux/win_minmax.h>
 
 /* Scale factor for rate in pkt/uSec unit to avoid truncation in bandwidth
  * estimation. The rate unit ~= (1500 bytes / 1 usec / 2^24) ~= 715 bps.
@@ -59,7 +58,6 @@ struct bbr {
 	u32	min_rtt_us;	        /* min RTT in min_rtt_win_sec window */
 	u32	min_rtt_stamp;	        /* timestamp of min_rtt_us */
 	u32	probe_rtt_done_stamp;   /* end time for BBR_PROBE_RTT mode */
-	struct minmax bw;	/* Max recent delivery rate in pkts/uS << 24 */
 	u32	rtt_cnt;	    /* count of packet-timed rounds elapsed */
 	u32     next_rtt_delivered; /* scb->tx.delivered at end of round */
 	struct skb_mstamp cycle_mstamp;  /* time of this cycle phase start */
@@ -152,20 +150,12 @@ static bool bbr_full_bw_reached(const struct sock *sk)
 	return bbr->full_bw_cnt >= bbr_full_bw_cnt;
 }
 
-/* Return the windowed max recent bandwidth sample, in pkts/uS << BW_SCALE. */
-static u32 bbr_max_bw(const struct sock *sk)
-{
-	struct bbr *bbr = inet_csk_ca(sk);
-
-	return minmax_get(&bbr->bw);
-}
-
 /* Return the estimated bandwidth of the path, in pkts/uS << BW_SCALE. */
 static u32 bbr_bw(const struct sock *sk)
 {
 	struct bbr *bbr = inet_csk_ca(sk);
 
-	return bbr->lt_use_bw ? bbr->lt_bw : bbr_max_bw(sk);
+	return bbr->lt_use_bw ? bbr->lt_bw;
 }
 
 /* Return rate in bytes per second, optionally with a gain.
@@ -350,7 +340,7 @@ static bool bbr_is_next_cycle_phase(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bbr *bbr = inet_csk_ca(sk);
 	bool is_full_length = true;
-	u32 inflight, bw;
+	u32 inflight;
 
 	/* The pacing_gain of 1.0 paces at the estimated bw to try to fully
 	 * use the pipe without increasing the queue.
@@ -358,7 +348,6 @@ static bool bbr_is_next_cycle_phase(struct sock *sk)
 	if (bbr->pacing_gain == BBR_UNIT)
 		return is_full_length;		/* just use wall clock time */
 
-	bw = bbr_max_bw(sk);
 
 	/* A pacing_gain > 1.0 probes for bw by trying to raise inflight to at
 	 * least pacing_gain*BDP; this may take more than min_rtt if min_rtt is
@@ -374,7 +363,7 @@ static bool bbr_is_next_cycle_phase(struct sock *sk)
 	 * estimate queue is drained; persisting would underutilize the pipe.
 	 */
 	return is_full_length ||
-		inflight <= bbr_target_cwnd(sk, bw, BBR_UNIT);
+		inflight <= bbr_target_cwnd(sk, BBR_UNIT);
 }
 
 static void bbr_advance_cycle_phase(struct sock *sk)
@@ -559,11 +548,6 @@ static void bbr_check_full_bw_reached(struct sock *sk)
 		return;
 
 	bw_thresh = (u64)bbr->full_bw * bbr_full_bw_thresh >> BBR_SCALE;
-	if (bbr_max_bw(sk) >= bw_thresh) {
-		bbr->full_bw = bbr_max_bw(sk);
-		bbr->full_bw_cnt = 0;
-		return;
-	}
 	++bbr->full_bw_cnt;
 }
 
@@ -579,7 +563,7 @@ static void bbr_check_drain(struct sock *sk)
 	}	/* fall through to check if in-flight is already small: */
 	if (bbr->mode == BBR_DRAIN &&
 	    tcp_packets_in_flight(tcp_sk(sk)) <=
-	    bbr_target_cwnd(sk, bbr_max_bw(sk), BBR_UNIT))
+	    bbr_target_cwnd(sk, BBR_UNIT))
 		bbr_reset_probe_bw_mode(sk);  /* we estimate queue is drained */
 }
 
@@ -683,8 +667,6 @@ static void bbr_init(struct sock *sk)
 	bbr->probe_rtt_round_done = 0;
 	bbr->min_rtt_us = tcp_min_rtt(tp);
 	bbr->min_rtt_stamp = tcp_time_stamp;
-
-	minmax_reset(&bbr->bw, bbr->rtt_cnt, 0);  /* init max bw to 0 */
 
 	/* Initialize pacing rate to: high_gain * init_cwnd / RTT. */
 	bw = (u64)tp->snd_cwnd * BW_UNIT;

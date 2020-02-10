@@ -24,10 +24,10 @@
 		clocks = <&clock_gcc clk_rf_clk1>;
 		clock-names = "rf_clk1";
 
-		qca,bt-vdd-core-voltage-level = <1800000 1900000>;
-		qca,bt-vdd-pa-voltage-level = <1304000 1370000>;
+		qca,bt-vdd-core-voltage-level = <1800000 1800000>;
+		qca,bt-vdd-pa-voltage-level = <1304000 1350000>;
 		qca,bt-vdd-ldo-voltage-level = <3312000 3400000>;
-		qca,bt-chip-pwd-voltage-level = <3600000 3600000>;
+		qca,bt-chip-pwd-voltage-level = <3590000 3600000>;
 
 		qca,bt-vdd-core-current-level = <1>; /* LPM/PFM */
 		qca,bt-vdd-pa-current-level = <1>; /* LPM/PFM */
@@ -49,8 +49,8 @@
 	vdda-phy-supply = <&pm660l_l1>;
 	vdda-pll-supply = <&pm660_l1>;
 	vddp-ref-clk-supply = <&pm660_l1>;
-	vdda-phy-max-uv = <925000>;
-	vdda-phy-min-uv = <800000>;
+	vdda-phy-max-uv = <900000>;
+	vdda-phy-min-uv = <760000>;
 	vdda-phy-max-microamp = <51400>;
 	vdda-pll-max-microamp = <14600>;
 	vddp-ref-clk-max-microamp = <100>;
