@@ -1,7 +1,7 @@
 VERSION = 4
 PATCHLEVEL = 4
-SUBLEVEL = 213
-EXTRAVERSION = .16
+SUBLEVEL = 214
+EXTRAVERSION = .17
 NAME = FeraKernel
 
 # *DOCUMENTATION*
@@ -304,8 +304,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 CCACHE := $(shell which ccache)
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -std=gnu89
-HOSTCXXFLAGS = -O3
+HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
+HOSTCXXFLAGS = -O2
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -390,7 +390,7 @@ LINUXINCLUDE    := \
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
-KBUILD_CFLAGS   := -O3 -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-format-security -Wno-unused-function -Wno-array-bounds \
+KBUILD_CFLAGS   := -O2 -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-format-security -Wno-unused-function -Wno-array-bounds \
 		   -Wno-address -Wno-unused-variable -Wno-unused-but-set-variable -Wno-implicit-function-declaration \
 		   -Wno-error=stringop-overflow= -fno-strict-aliasing -fno-common -ftree-vectorize -fivopts -funroll-loops \
 		   -floop-nest-optimize -fgraphite-identity -ftree-loop-distribution \
