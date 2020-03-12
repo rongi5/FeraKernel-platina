@@ -235,14 +235,14 @@
 &pm660_haptics {
        status = "okay";
        qcom,wave-play-rate-us = <4878>;
-       qcom,vmax-mv = <3000>;
+       qcom,vmax-mv = <1800>;
        qcom,wave-shape = "sine";
        qcom,lra-auto-res-mode = "qwd";
        qcom,lra-res-cal-period = <4>;
        qcom,lra-qwd-drive-duration = <1>;
        qcom,brake-pattern = [03 02 00 00];
        qcom,disable_force_back_emf_delay;
-       qcom,vmax-overbrake-mv = <3596>;
+       qcom,vmax-overbrake-mv = <3000>;
        qcom,brake-pattern-count = <4>;
        qcom,brake-pattern-arry = [01 01 00 00
        02 01 01 00
