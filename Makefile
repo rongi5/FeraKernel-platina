@@ -392,8 +392,9 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 
 KBUILD_CFLAGS   := -O2 -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-format-security -Wno-unused-function -Wno-array-bounds \
 		   -Wno-address -Wno-unused-variable -Wno-unused-but-set-variable -Wno-implicit-function-declaration \
-		   -Wno-error=stringop-overflow= -fno-strict-aliasing -fno-common -ftree-vectorize -fivopts -funroll-loops \
-		   -floop-nest-optimize -fgraphite-identity -ftree-loop-distribution \
+		   -Wno-error=stringop-overflow= -fno-strict-aliasing -fno-common -fivopts \
+		   -fgraphite-identity -floop-nest-optimize -floop-parallelize-all -ftree-loop-if-convert \
+		   -ftree-loop-distribution -floop-interchange \
 		   -march=armv8-a+crc+simd+crypto+sb+predres -mcpu=cortex-a73.cortex-a53+crypto -mtune=cortex-a73.cortex-a53 \
 		   -std=gnu89 $(call cc-option,-fno-PIE)
 
